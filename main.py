@@ -7,9 +7,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 app = FastAPI(title='PI MLOps | Realizado por Matias A. Lopez Touzon ')
 # Carga los DataFrame desde el archivo CSV
-data_reviews = pd.read_csv('Data\\australian_user_reviews_ok.csv')
-data_steam = pd.read_csv('Data\\steam_games_ok.csv')
-with gzip.open('Data\\data_users_items_ok.csv.gz', 'rt') as f:
+data_reviews = pd.read_csv('Data/australian_user_reviews_ok.csv')
+data_steam = pd.read_csv('Data/steam_games_ok.csv')
+with gzip.open('Data/data_users_items_ok.csv.gz', 'rt') as f:
     data_items = pd.read_csv(f)
 
 
@@ -210,7 +210,7 @@ async def Sentiment_analysis(anio: int):
 @app.get('/recomendacion_juego/{product_id}')
 async def recomendacion_juego(product_id: int):
     # Cargar el conjunto de datos de juegos de Steam
-    steamGames = pd.read_csv('G:\\PI MLOps - STEAM\\Data\\steam_games_ok.csv')
+    steamGames = pd.read_csv('Data/steam_games_ok.csv')
     # Seleccionar el juego de referencia por su ID
     target_game = steamGames[steamGames['id'] == product_id]
     # Verificar si el juego de referencia existe
@@ -227,7 +227,7 @@ async def recomendacion_juego(product_id: int):
     similarity_scores = None
 
     # Iterar a través del conjunto de datos en "chunks/fragnmentos"
-    for chunk in pd.read_csv('G:\\PI MLOps - STEAM\\Data\\steam_games_ok.csv', chunksize=100):
+    for chunk in pd.read_csv('Data/steam_games_ok.csv', chunksize=100):
         # Combinar las columnas de 'tags' y 'genres' de cada "chunk" en una lista
         chunk_tags_and_genres = chunk['tags'].fillna('').astype(
             str) + ' ' + chunk['genres'].fillna('').astype(str)
@@ -260,11 +260,9 @@ async def recomendacion_juego(product_id: int):
 @app.get('/recomendacion_usuario/{user_id}')
 async def recomendacion_usuario(user_id: str):
     # Cargar el conjunto de datos de juegos de Steam
-    steamGames = pd.read_csv(
-        'G:\\PI MLOps - STEAM\\Data\\australian_user_reviews_ok.csv')
+    steamGames = pd.read_csv('Data/australian_user_reviews_ok.csv')
     # Cargar el conjunto de datos que contiene 'tags' y 'genres'
-    tags_genres_data = pd.read_csv(
-        'G:\\PI MLOps - STEAM\\Data\\steam_games_ok.csv')
+    tags_genres_data = pd.read_csv('Data/steam_games_ok.csv')
     # Verificar si el conjunto de datos contiene las columnas necesarias
     required_columns = ['user_id', 'item_id']
     if not all(column in steamGames.columns for column in required_columns):
@@ -293,7 +291,7 @@ async def recomendacion_usuario(user_id: str):
     similarity_scores = None
 
     # Iterar a través del conjunto de datos en "chunks/fragnmentos"
-    for chunk in pd.read_csv('G:\\PI MLOps - STEAM\\Data\\australian_user_reviews_ok.csv', chunksize=100):
+    for chunk in pd.read_csv('Data/australian_user_reviews_ok.csv', chunksize=100):
         # Fusionar el chunk con el DataFrame de 'tags' y 'genres'
         chunk = pd.merge(chunk, tags_genres_data,
                          left_on='item_id', right_on='id', how='inner')
