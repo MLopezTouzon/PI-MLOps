@@ -1,5 +1,7 @@
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 app = FastAPI(title='PI MLOps | Realizado por Matias A. Lopez Touzon ')
@@ -202,3 +204,125 @@ async def Sentiment_analysis(anio: int):
         # Devolver un mensaje de error en caso de cualquier otra excepción
         raise HTTPException(
             status_code=500, detail={"Mensaje": f"Error interno del servidor: {str(e)}"})
+
+
+@app.get('/recomendacion_juego/{product_id}')
+async def recomendacion_juego(product_id: int):
+    # Cargar el conjunto de datos de juegos de Steam
+    steamGames = pd.read_csv('G:\\PI MLOps - STEAM\\Data\\steam_games_ok.csv')
+    # Seleccionar el juego de referencia por su ID
+    target_game = steamGames[steamGames['id'] == product_id]
+    # Verificar si el juego de referencia existe
+
+    if target_game.empty:
+        return {"message": "No se encontró el juego de referencia."}
+
+    # Combinar las columnas de 'tags' y 'genres' del juego de referencia en una cadena
+    target_game_tags_and_genres = ' '.join(target_game['tags'].fillna(
+        '').astype(str) + ' ' + target_game['genres'].fillna('').astype(str))
+    # Inicializar el vectorizador TF-IDF
+    tfidf_vectorizer = TfidfVectorizer()
+    # Inicializar la variable de similitud del coseno fuera del bucle
+    similarity_scores = None
+
+    # Iterar a través del conjunto de datos en "chunks/fragnmentos"
+    for chunk in pd.read_csv('G:\\PI MLOps - STEAM\\Data\\steam_games_ok.csv', chunksize=100):
+        # Combinar las columnas de 'tags' y 'genres' de cada "chunk" en una lista
+        chunk_tags_and_genres = chunk['tags'].fillna('').astype(
+            str) + ' ' + chunk['genres'].fillna('').astype(str)
+        games_to_compare = [target_game_tags_and_genres] + \
+            chunk_tags_and_genres.tolist()
+        # Aplicar la vectorización TF-IDF a la lista de juegos
+        tfidf_matrix = tfidf_vectorizer.fit_transform(games_to_compare)
+        # Calcular la similitud del coseno entre los juegos
+
+        if similarity_scores is None:
+            similarity_scores = cosine_similarity(tfidf_matrix)
+        else:
+            similarity_scores = cosine_similarity(tfidf_matrix)
+
+    # Verificar si se calcularon las puntuaciones de similitud
+    if similarity_scores is not None:
+        # Obtener los índices de juegos similares ordenados por similitud descendente
+        similar_games_indices = similarity_scores[0].argsort()[::-1]
+        # Número de recomendaciones a devolver
+        num_recommendations = 5
+        # Seleccionar los juegos recomendados y almacenarlos en un DataFrame
+        recommended_games = steamGames.loc[similar_games_indices[1:num_recommendations + 1]]
+        # Formatear los resultados como un diccionario de registros
+        return recommended_games[['app_name']].to_dict(orient='records')
+
+    # Mensaje en caso de que no se encontraran juegos similares
+    return {"message": "No se encontraron juegos similares."}
+
+
+@app.get('/recomendacion_usuario/{user_id}')
+async def recomendacion_usuario(user_id: str):
+    # Cargar el conjunto de datos de juegos de Steam
+    steamGames = pd.read_csv(
+        'G:\\PI MLOps - STEAM\\Data\\australian_user_reviews_ok.csv')
+    # Cargar el conjunto de datos que contiene 'tags' y 'genres'
+    tags_genres_data = pd.read_csv(
+        'G:\\PI MLOps - STEAM\\Data\\steam_games_ok.csv')
+    # Verificar si el conjunto de datos contiene las columnas necesarias
+    required_columns = ['user_id', 'item_id']
+    if not all(column in steamGames.columns for column in required_columns):
+        return {"message": "El conjunto de datos de juegos de Steam no contiene todas las columnas necesarias."}
+
+    # Filtrar las interacciones del usuario especificado
+    user_interactions = steamGames[steamGames['user_id'] == user_id]
+
+    # Verificar si hay interacciones para el usuario
+    if user_interactions.empty:
+        return {"message": f"No hay interacciones registradas para el usuario {user_id}."}
+
+    # Fusionar DataFrames utilizando la columna 'item_id'
+    merged_data = pd.merge(user_interactions, tags_genres_data,
+                           left_on='item_id', right_on='id', how='inner')
+
+    # Verificar si hay datos fusionados
+    if merged_data.empty:
+        return {"message": f"No se encontraron datos para el usuario {user_id}."}
+
+    # Combinar las columnas de 'tags' y 'genres' de los juegos del usuario en una cadena
+    user_games_tags_and_genres = ' '.join(merged_data['tags'].fillna(
+        '').astype(str) + ' ' + merged_data['genres'].fillna('').astype(str))
+    # Inicializar el vectorizador TF-IDF
+    tfidf_vectorizer = TfidfVectorizer()
+    similarity_scores = None
+
+    # Iterar a través del conjunto de datos en "chunks/fragnmentos"
+    for chunk in pd.read_csv('G:\\PI MLOps - STEAM\\Data\\australian_user_reviews_ok.csv', chunksize=100):
+        # Fusionar el chunk con el DataFrame de 'tags' y 'genres'
+        chunk = pd.merge(chunk, tags_genres_data,
+                         left_on='item_id', right_on='id', how='inner')
+        # Combinar las columnas de 'tags' y 'genres' de cada "chunk" en una lista
+        chunk_tags_and_genres = chunk['tags'].fillna('').astype(
+            str) + ' ' + chunk['genres'].fillna('').astype(str)
+        games_to_compare = [user_games_tags_and_genres] + \
+            chunk_tags_and_genres.tolist()
+        # Aplicar la vectorización TF-IDF a la lista de juegos
+        tfidf_matrix = tfidf_vectorizer.fit_transform(games_to_compare)
+
+        # Calcular la similitud del coseno entre los juegos
+        if similarity_scores is None:
+            similarity_scores = cosine_similarity(tfidf_matrix)
+        else:
+            similarity_scores = cosine_similarity(tfidf_matrix)
+
+    # Verificar si se calcularon las puntuaciones de similitud
+    if similarity_scores is not None:
+        # Obtener los índices de juegos similares ordenados por similitud descendente
+        similar_games_indices = similarity_scores[0].argsort()[::-1]
+        # Número de recomendaciones a devolver
+        num_recommendations = 5
+        # Seleccionar los juegos recomendados y almacenarlos en un DataFrame
+        recommended_games = tags_genres_data.loc[similar_games_indices[1:num_recommendations + 1]]
+        # Formatear los resultados como un diccionario de registros
+        return recommended_games[['app_name']].to_dict(orient='records')
+
+    # Mensaje en caso de que no se encontraran juegos similares
+    return {"message": "No se encontraron juegos similares para el usuario."}
+
+
+# verificar que no recomiendo juegos que ya tiene
