@@ -3,6 +3,9 @@ import gzip
 from fastapi import FastAPI, HTTPException
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import NearestNeighbors
 
 
 app = FastAPI(title='PI MLOps | Realizado por Matias A. Lopez Touzon ')
@@ -209,119 +212,186 @@ async def Sentiment_analysis(anio: int):
 
 @app.get('/recomendacion_juego/{product_id}')
 async def recomendacion_juego(product_id: int):
-    # Cargar el conjunto de datos de juegos de Steam
-    steamGames = pd.read_csv('Data/steam_games_ok.csv')
-    # Seleccionar el juego de referencia por su ID
-    target_game = steamGames[steamGames['id'] == product_id]
-    # Verificar si el juego de referencia existe
+    try:
+        # Cargar el conjunto de datos de juegos de Steam
+        steamGames = pd.read_csv('Data/steam_games_ok.csv')
+        # Seleccionar el juego de referencia por su ID
+        target_game = steamGames[steamGames['id'] == product_id]
+        # Verificar si el juego de referencia existe
 
-    if target_game.empty:
-        return {"message": "No se encontró el juego de referencia."}
+        if target_game.empty:
+            raise HTTPException(
+                status_code=404, detail="No se encontró el juego de referencia.")
 
-    # Combinar las columnas de 'tags' y 'genres' del juego de referencia en una cadena
-    target_game_tags_and_genres = ' '.join(target_game['tags'].fillna(
-        '').astype(str) + ' ' + target_game['genres'].fillna('').astype(str))
-    # Inicializar el vectorizador TF-IDF
-    tfidf_vectorizer = TfidfVectorizer()
-    # Inicializar la variable de similitud del coseno fuera del bucle
-    similarity_scores = None
+        # Combinar las columnas de 'tags' y 'genres' del juego de referencia en una cadena
+        target_game_tags_and_genres = ' '.join(target_game['tags'].fillna(
+            '').astype(str) + ' ' + target_game['genres'].fillna('').astype(str))
+        # Inicializar el vectorizador TF-IDF
+        tfidf_vectorizer = TfidfVectorizer()
+        # Inicializar la variable de similitud del coseno fuera del bucle
+        similarity_scores = None
 
-    # Iterar a través del conjunto de datos en "chunks/fragnmentos"
-    for chunk in pd.read_csv('Data/steam_games_ok.csv', chunksize=100):
-        # Combinar las columnas de 'tags' y 'genres' de cada "chunk" en una lista
-        chunk_tags_and_genres = chunk['tags'].fillna('').astype(
-            str) + ' ' + chunk['genres'].fillna('').astype(str)
-        games_to_compare = [target_game_tags_and_genres] + \
-            chunk_tags_and_genres.tolist()
-        # Aplicar la vectorización TF-IDF a la lista de juegos
-        tfidf_matrix = tfidf_vectorizer.fit_transform(games_to_compare)
-        # Calcular la similitud del coseno entre los juegos
+        # Iterar a través del conjunto de datos en "chunks/fragnmentos"
+        for chunk in pd.read_csv('Data/steam_games_ok.csv', chunksize=100):
+            # Combinar las columnas de 'tags' y 'genres' de cada "chunk" en una lista
+            chunk_tags_and_genres = chunk['tags'].fillna('').astype(
+                str) + ' ' + chunk['genres'].fillna('').astype(str)
+            games_to_compare = [target_game_tags_and_genres] + \
+                chunk_tags_and_genres.tolist()
+            # Aplicar la vectorización TF-IDF a la lista de juegos
+            tfidf_matrix = tfidf_vectorizer.fit_transform(games_to_compare)
+            # Calcular la similitud del coseno entre los juegos
 
-        if similarity_scores is None:
-            similarity_scores = cosine_similarity(tfidf_matrix)
-        else:
-            similarity_scores = cosine_similarity(tfidf_matrix)
+            if similarity_scores is None:
+                similarity_scores = cosine_similarity(tfidf_matrix)
+            else:
+                similarity_scores = cosine_similarity(tfidf_matrix)
 
-    # Verificar si se calcularon las puntuaciones de similitud
-    if similarity_scores is not None:
-        # Obtener los índices de juegos similares ordenados por similitud descendente
-        similar_games_indices = similarity_scores[0].argsort()[::-1]
-        # Número de recomendaciones a devolver
-        num_recommendations = 5
-        # Seleccionar los juegos recomendados y almacenarlos en un DataFrame
-        recommended_games = steamGames.loc[similar_games_indices[1:num_recommendations + 1]]
-        # Formatear los resultados como un diccionario de registros
-        return recommended_games[['app_name']].to_dict(orient='records')
+        # Verificar si se calcularon las puntuaciones de similitud
+        if similarity_scores is not None:
+            # Obtener los índices de juegos similares ordenados por similitud descendente
+            similar_games_indices = similarity_scores[0].argsort()[::-1]
+            # Número de recomendaciones a devolver
+            num_recommendations = 5
+            # Seleccionar los juegos recomendados y almacenarlos en un DataFrame
+            recommended_games = steamGames.loc[similar_games_indices[1:num_recommendations + 1]]
+            # Formatear los resultados como un diccionario de registros
+            return recommended_games[['app_name']].to_dict(orient='records')
 
-    # Mensaje en caso de que no se encontraran juegos similares
-    return {"message": "No se encontraron juegos similares."}
+        # Mensaje en caso de que no se encontraran juegos similares
+        raise HTTPException(
+            status_code=404, detail="No se encontraron juegos similares.")
+    except Exception as e:
+        # Capturar cualquier excepción no prevista
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get('/recomendacion_usuario/{user_id}')
 async def recomendacion_usuario(user_id: str):
-    # Cargar el conjunto de datos de juegos de Steam
-    steamGames = pd.read_csv('Data/australian_user_reviews_ok.csv')
-    # Cargar el conjunto de datos que contiene 'tags' y 'genres'
-    tags_genres_data = pd.read_csv('Data/steam_games_ok.csv')
-    # Verificar si el conjunto de datos contiene las columnas necesarias
-    required_columns = ['user_id', 'item_id']
-    if not all(column in steamGames.columns for column in required_columns):
-        return {"message": "El conjunto de datos de juegos de Steam no contiene todas las columnas necesarias."}
+    try:
+        # Cargar el conjunto de datos de juegos de Steam
+        steamGames = pd.read_csv('Data/australian_user_reviews_ok.csv')
+        # Cargar el conjunto de datos que contiene 'tags' y 'genres'
+        tags_genres_data = pd.read_csv('Data/steam_games_ok.csv')
+        # Verificar si el conjunto de datos contiene las columnas necesarias
+        required_columns = ['user_id', 'item_id']
+        if not all(column in steamGames.columns for column in required_columns):
+            raise HTTPException(
+                status_code=404, detail="El conjunto de datos de juegos de Steam no contiene todas las columnas necesarias.")
 
-    # Filtrar las interacciones del usuario especificado
-    user_interactions = steamGames[steamGames['user_id'] == user_id]
+        # Filtrar las interacciones del usuario especificado
+        user_interactions = steamGames[steamGames['user_id'] == user_id]
 
-    # Verificar si hay interacciones para el usuario
-    if user_interactions.empty:
-        return {"message": f"No hay interacciones registradas para el usuario {user_id}."}
+        # Verificar si hay interacciones para el usuario
+        if user_interactions.empty:
+            return {"message": f"No hay interacciones registradas para el usuario {user_id}."}
 
-    # Fusionar DataFrames utilizando la columna 'item_id'
-    merged_data = pd.merge(user_interactions, tags_genres_data,
-                           left_on='item_id', right_on='id', how='inner')
+        # Fusionar DataFrames utilizando la columna 'item_id'
+        merged_data = pd.merge(user_interactions, tags_genres_data,
+                               left_on='item_id', right_on='id', how='inner')
 
-    # Verificar si hay datos fusionados
-    if merged_data.empty:
-        return {"message": f"No se encontraron datos para el usuario {user_id}."}
+        # Verificar si hay datos fusionados
+        if merged_data.empty:
+            raise HTTPException(
+                status_code=404, detail=f"No se encontraron datos para el usuario {user_id}.")
 
-    # Combinar las columnas de 'tags' y 'genres' de los juegos del usuario en una cadena
-    user_games_tags_and_genres = ' '.join(merged_data['tags'].fillna(
-        '').astype(str) + ' ' + merged_data['genres'].fillna('').astype(str))
-    # Inicializar el vectorizador TF-IDF
-    tfidf_vectorizer = TfidfVectorizer()
-    similarity_scores = None
+        # Combinar las columnas de 'tags' y 'genres' de los juegos del usuario en una cadena
+        user_games_tags_and_genres = ' '.join(merged_data['tags'].fillna(
+            '').astype(str) + ' ' + merged_data['genres'].fillna('').astype(str))
+        # Inicializar el vectorizador TF-IDF
+        tfidf_vectorizer = TfidfVectorizer()
+        similarity_scores = None
 
-    # Iterar a través del conjunto de datos en "chunks/fragnmentos"
-    for chunk in pd.read_csv('Data/australian_user_reviews_ok.csv', chunksize=100):
-        # Fusionar el chunk con el DataFrame de 'tags' y 'genres'
-        chunk = pd.merge(chunk, tags_genres_data,
-                         left_on='item_id', right_on='id', how='inner')
-        # Combinar las columnas de 'tags' y 'genres' de cada "chunk" en una lista
-        chunk_tags_and_genres = chunk['tags'].fillna('').astype(
-            str) + ' ' + chunk['genres'].fillna('').astype(str)
-        games_to_compare = [user_games_tags_and_genres] + \
-            chunk_tags_and_genres.tolist()
-        # Aplicar la vectorización TF-IDF a la lista de juegos
-        tfidf_matrix = tfidf_vectorizer.fit_transform(games_to_compare)
+        # Iterar a través del conjunto de datos en "chunks/fragnmentos"
+        for chunk in pd.read_csv('Data/australian_user_reviews_ok.csv', chunksize=100):
+            # Fusionar el chunk con el DataFrame de 'tags' y 'genres'
+            chunk = pd.merge(chunk, tags_genres_data,
+                             left_on='item_id', right_on='id', how='inner')
+            # Combinar las columnas de 'tags' y 'genres' de cada "chunk" en una lista
+            chunk_tags_and_genres = chunk['tags'].fillna('').astype(
+                str) + ' ' + chunk['genres'].fillna('').astype(str)
+            games_to_compare = [user_games_tags_and_genres] + \
+                chunk_tags_and_genres.tolist()
+            # Aplicar la vectorización TF-IDF a la lista de juegos
+            tfidf_matrix = tfidf_vectorizer.fit_transform(games_to_compare)
 
-        # Calcular la similitud del coseno entre los juegos
-        if similarity_scores is None:
-            similarity_scores = cosine_similarity(tfidf_matrix)
-        else:
-            similarity_scores = cosine_similarity(tfidf_matrix)
+            # Calcular la similitud del coseno entre los juegos
+            if similarity_scores is None:
+                similarity_scores = cosine_similarity(tfidf_matrix)
+            else:
+                similarity_scores = cosine_similarity(tfidf_matrix)
 
-    # Verificar si se calcularon las puntuaciones de similitud
-    if similarity_scores is not None:
-        # Obtener los índices de juegos similares ordenados por similitud descendente
-        similar_games_indices = similarity_scores[0].argsort()[::-1]
-        # Número de recomendaciones a devolver
-        num_recommendations = 5
-        # Seleccionar los juegos recomendados y almacenarlos en un DataFrame
-        recommended_games = tags_genres_data.loc[similar_games_indices[1:num_recommendations + 1]]
-        # Formatear los resultados como un diccionario de registros
-        return recommended_games[['app_name']].to_dict(orient='records')
+        # Verificar si se calcularon las puntuaciones de similitud
+        if similarity_scores is not None:
+            # Obtener los índices de juegos similares ordenados por similitud descendente
+            similar_games_indices = similarity_scores[0].argsort()[::-1]
+            # Filtrar juegos que el usuario ya tiene
+            user_owned_games = user_interactions['item_id'].tolist()
+            similar_games_indices = [
+                idx for idx in similar_games_indices if tags_genres_data.iloc[idx]['id'] not in user_owned_games]
+            # Número de recomendaciones a devolver
+            num_recommendations = 5
+            # Seleccionar los juegos recomendados y almacenarlos en un DataFrame
+            recommended_games = tags_genres_data.loc[similar_games_indices[1:num_recommendations + 1]]
+            # Formatear los resultados como un diccionario de registros
+            return recommended_games[['app_name']].to_dict(orient='records')
 
-    # Mensaje en caso de que no se encontraran juegos similares
-    return {"message": "No se encontraron juegos similares para el usuario."}
+        # Mensaje en caso de que no se encontraran juegos similares
+        raise HTTPException(
+            status_code=404, detail="No se encontraron juegos similares para el usuario.")
+
+    except HTTPException as he:
+        # Capturar excepciones de FastAPI
+        raise he
+
+    except Exception as e:
+        # Capturar cualquier excepción no prevista
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# verificar que no recomiendo juegos que ya tiene
+@app.get('/generar_recomendaciones/{user_id}')
+async def generar_recomendaciones(user_id: int):
+    try:
+        # Convertir user_id a números usando LabelEncoder
+        label_encoder = LabelEncoder()
+        data_reviews['user_id'] = label_encoder.fit_transform(
+            data_reviews['user_id'])
+        # División de Datos
+        train_data, test_data = train_test_split(
+            data_reviews, test_size=0.2, random_state=42)
+        # Creación del Modelo
+        model = NearestNeighbors(n_neighbors=5, metric='cosine')
+        model.fit(train_data[['user_id', 'item_id']])
+        # Convertir user_id del usuario a predecir
+        user_id_to_predict_encoded = label_encoder.transform([user_id])[0]
+        user_items = data_reviews[data_reviews['user_id'] ==
+                                  user_id_to_predict_encoded][['user_id', 'item_id']]
+        # Encuentra los vecinos más cercanos
+        distances, indices = model.kneighbors(user_items)
+        # Haz recomendaciones para el usuario basado en los vecinos más cercanos
+        recommended_items = set()
+
+        for index in indices.flatten():
+            # Convertir user_id de los vecinos de nuevo a cadenas
+            neighbor_user_id = label_encoder.inverse_transform([index])[0]
+            recommended_items.update(
+                set(data_reviews[data_reviews['user_id'] == neighbor_user_id]['item_id']))
+
+        # Filtra ítems ya vistos por el usuario
+        recommended_items -= set(user_items['item_id'])
+        # Mapea IDs de juego a nombres de juego
+        recommended_game_names = data_steam[data_steam['id'].isin(
+            recommended_items)]['app_name'].tolist()
+
+        return recommended_game_names
+
+    except KeyError as ke:
+        raise HTTPException(
+            status_code=500, detail=f"Error de clave: {str(ke)}")
+
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=500, detail=f"Error de valor: {str(ve)}")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
