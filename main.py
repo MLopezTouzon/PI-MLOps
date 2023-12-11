@@ -87,7 +87,7 @@ async def UserForGenre(genero: str):
 async def UsersRecommend(anio: int):
     try:
         # Obtener una muestra aleatoria del DataFrame
-        df_sample = data_reviews.sample(frac=0.15, random_state=42)
+        df_sample = data_reviews.sample(frac=0.5, random_state=42)
         # Fusionar los DataFrames para obtener la información relevante
         df_merged = pd.merge(df_sample[['item_id', 'recommend', 'sentiment_analysis', 'año_posted']],
                              data_items[['item_id', 'item_name']],
@@ -131,7 +131,7 @@ async def UsersRecommend(anio: int):
 async def UsersNotRecommend(anio: int):
     try:
         # Obtener una muestra aleatoria del DataFrame
-        df_sample = data_reviews.sample(frac=0.15, random_state=42)
+        df_sample = data_reviews.sample(frac=0.5, random_state=42)
         # Fusionar los DataFrames para obtener la información relevante
         df_merged = pd.merge(df_sample[['item_id', 'recommend', 'sentiment_analysis', 'año_posted']],
                              data_items[['item_id', 'item_name']],
