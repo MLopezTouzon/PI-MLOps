@@ -7,10 +7,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 app = FastAPI(title='PI MLOps | Realizado por Matias A. Lopez Touzon ')
 # Carga los DataFrame desde el archivo CSV
-data_reviews = pd.read_csv(
-    'G:\\PI MLOps - STEAM\\Data\\australian_user_reviews_ok.csv')
-data_steam = pd.read_csv('G:\\PI MLOps - STEAM\\Data\\steam_games_ok.csv')
-with gzip.open('G:\\PI MLOps - STEAM\\Data\\data_users_items_ok.csv.gz', 'rt') as f:
+data_reviews = pd.read_csv('Data\\australian_user_reviews_ok.csv')
+data_steam = pd.read_csv('Data\\steam_games_ok.csv')
+with gzip.open('Data\\data_users_items_ok.csv.gz', 'rt') as f:
     data_items = pd.read_csv(f)
 
 
