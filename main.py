@@ -171,7 +171,10 @@ async def UsersNotRecommend(anio: int):
         # Devolver un mensaje de error en caso de cualquier otra excepción
         raise HTTPException(
             status_code=500, detail={"Mensaje": f"Error interno del servidor: {str(e)}"})
-'''@app.get('/UsersNotRecommend/{anio}')
+'''
+# Funcion antes de optimizar para que funcione en render y consuma menos recuros
+
+@app.get('/UsersNotRecommend/{anio}')
 async def UsersNotRecommend(anio: int):
     try:
         # Obtener una muestra aleatoria del DataFrame
