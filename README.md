@@ -10,17 +10,17 @@
 
 ## Desarrollo de ETL y EDA
 
-Los DataSets que fueron proporcionados estaban en formatos json los cuales tuvieron que ser desempaquetados para su estraccion de datos; ademas, al momento de transformar los datos, tenia que desanidar ciertas columnas, borrar datos nulos y asi mismo asignarle a algunos datos nulos algunos valores para que no haya problemas en el desarrollo de las funciones.
-En la carga de los data frames uno de ellos se transformo en archivos .gz; asi mismo, entre dos data frames se realizo un mapeo para la optimizacion de la memoria.
-Por otro lado los datos fueron explorados y en ciertos graficos se muetran el top videojuegos, el analisis de sentimiento y usuarios con mas juegos recomendados, entre otros.  
+Los DataSets que fueron proporcionados estaban en distintos formatos, los cuales tuvieron que ser desempaquetados para su estraccion de datos, ademas, al momento de transformar los datos, tenia que desanidar ciertas columnas, borrar datos nulos y asi mismo asignarle a algunos datos nulos algunos valores para que no haya problemas en el desarrollo de las funciones.
+En la carga de los data frames uno de ellos se transformo en archivos .gz, tambien se realizo un mapeo para la optimizacion de memoria entre dos data frames.
+Por otro lado los datos fueron explorados y en ciertos graficos se muetran el top video juegos, el analisis de sentimiento y usuarios con mas juegos recomendados, entre otros.  
 <p align="center">
 <img src="https://github.com/HX-PRomero/PI_ML_OPS/raw/main/src/DiagramaConceptualDelFlujoDeProcesos.png"  height=500>
 </p>
 
 ## CONTENIDO DE LA API
 
-La API, el cual esta en [Render](https://render.com/docs/free#free-web-services) contiene 5 funciones y un sistema de recomendacion los cuales fueron solicitados, los cuales realizan el funcionamiento de genero mas jugado, horas jugadas por determinados usuarios en dichos generos, año en donde mas juegos se recomendaron, entre otros.
-Con respecto a los sistemas de recomendacion nos retornara 5 juegos similares, hice 3 endpoints para recomendar juegos, uno de item-item y dos de user-item hechos de distintas maneras.
+La API, que esta en [Render](https://render.com/docs/free#free-web-services) contiene 5 endpoints y tres sistemas de recomendacion, realizan las funciones de genero mas jugado, horas jugadas por determinados usuarios en dichos generos, año en donde mas juegos se recomendaron, entre otros.
+Con respecto a los sistemas de recomendacion nos retornara 5 juegos similares, hice 3 sistemas de recomendacion para recomendar juegos, uno de item-item y dos de user-item hechos de distintas maneras.
 
 ## LINKS
  + Repositorio de (GITHUB) : https://github.com/MLopezTouzon/PI-MLOps.git

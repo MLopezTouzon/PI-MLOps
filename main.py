@@ -90,13 +90,13 @@ async def UsersRecommend(anio: int):
     try:
         # Obtener una muestra aleatoria del DataFrame
         df_sample = data_reviews.sample(frac=0.5, random_state=42)
+        # Filtrar por el año especificado
+        df_año = df_sample[df_sample['año_posted'] == str(anio)]
         # Fusionar los DataFrames para obtener la información relevante
-        df_merged = pd.merge(df_sample[['item_id', 'recommend', 'sentiment_analysis', 'año_posted']],
+        df_merged = pd.merge(df_año[['item_id', 'recommend', 'sentiment_analysis', 'año_posted']],
                              data_items[['item_id', 'item_name']],
                              on='item_id',
                              how='inner')
-        # Filtrar por el año especificado
-        df_año = df_merged[df_merged['año_posted'] == str(anio)]
 
         if df_año.empty:
             # Devolver un mensaje si no hay datos para el año especificado
@@ -104,8 +104,8 @@ async def UsersRecommend(anio: int):
                                 "Mensaje": "No hay datos para el año especificado"})
 
         # Filtrar por recomendaciones positivas/neutrales
-        df_recomendados = df_año[(df_año['recommend'] == True) & (
-            df_año['sentiment_analysis'].isin([1, 2]))]
+        df_recomendados = df_merged[(df_merged['recommend'] == True) & (
+            df_merged['sentiment_analysis'].isin([1, 2]))]
 
         if df_recomendados.empty:
             # Devolver un mensaje si no hay juegos recomendados para el año especificado
@@ -130,6 +130,49 @@ async def UsersRecommend(anio: int):
 
 
 @app.get('/UsersNotRecommend/{anio}')
+async def UsersNotRecommend(anio: int):
+    try:
+        # Obtener una muestra aleatoria del DataFrame
+        df_sample = data_reviews.sample(frac=0.5, random_state=42)
+        # Filtrar por el año especificado
+        df_año = df_sample[df_sample['año_posted'] == str(anio)]
+        # Fusionar los DataFrames para obtener la información relevante
+        df_merged = pd.merge(df_año[['item_id', 'recommend', 'sentiment_analysis', 'año_posted']],
+                             data_items[['item_id', 'item_name']],
+                             on='item_id',
+                             how='inner')
+
+        if df_año.empty:
+            # Devolver un mensaje si no hay datos para el año especificado
+            raise HTTPException(status_code=404, detail={
+                                "Mensaje": "No hay datos para el año especificado"})
+
+        # Filtrar por recomendaciones negativas
+        df_no_recomendados = df_merged[(df_merged['recommend'] == False) & (
+            df_merged['sentiment_analysis'].isin([0]))]
+
+        if df_no_recomendados.empty:
+            # Devolver un mensaje si no hay juegos no recomendados para el año especificado
+            raise HTTPException(status_code=404, detail={
+                                "Mensaje": "No hay juegos no recomendados para el año especificado"})
+
+        # Contar las no recomendaciones por juego
+        conteo_no_recomendaciones = df_no_recomendados['item_name'].value_counts(
+        ).reset_index()
+        conteo_no_recomendaciones.columns = ['Juego', 'Recomendaciones']
+        # Obtener el top 3 de juegos recomendados
+        top3_no_recomendados = conteo_no_recomendaciones.head(3)
+        # Crear la lista de retorno
+        resultado = [{"Puesto " + str(i + 1): {"Juego": juego, "No lo recomiendan ": no_recomendaciones}}
+                     for i, (juego, no_recomendaciones) in enumerate(top3_no_recomendados.values)]
+
+        return resultado
+
+    except Exception as e:
+        # Devolver un mensaje de error en caso de cualquier otra excepción
+        raise HTTPException(
+            status_code=500, detail={"Mensaje": f"Error interno del servidor: {str(e)}"})
+'''@app.get('/UsersNotRecommend/{anio}')
 async def UsersNotRecommend(anio: int):
     try:
         # Obtener una muestra aleatoria del DataFrame
@@ -171,7 +214,7 @@ async def UsersNotRecommend(anio: int):
     except Exception as e:
         # Devolver un mensaje de error en caso de cualquier otra excepción
         raise HTTPException(
-            status_code=500, detail={"Mensaje": f"Error interno del servidor: {str(e)}"})
+            status_code=500, detail={"Mensaje": f"Error interno del servidor: {str(e)}"})'''
 
 
 @app.get('/Sentiment_analysis/{anio}')
