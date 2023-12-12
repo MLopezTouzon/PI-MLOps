@@ -84,14 +84,15 @@ async def UserForGenre(genero: str):
         raise HTTPException(
             status_code=500, detail=f"Error interno del servidor: {str(e)}")
 
+ # Obtener una muestra aleatoria del DataFrame data_reviews para que funcionen los proximos dos endpoints en render
+df_m_reviews = data_reviews.sample(frac=0.5, random_state=42)
+
 
 @app.get('/UsersRecommend/{anio}')
 async def UsersRecommend(anio: int):
     try:
-        # Obtener una muestra aleatoria del DataFrame
-        df_sample = data_reviews.sample(frac=0.5, random_state=42)
         # Filtrar por el año especificado
-        df_año = df_sample[df_sample['año_posted'] == str(anio)]
+        df_año = df_m_reviews[df_m_reviews['año_posted'] == str(anio)]
         # Fusionar los DataFrames para obtener la información relevante
         df_merged = pd.merge(df_año[['item_id', 'recommend', 'sentiment_analysis', 'año_posted']],
                              data_items[['item_id', 'item_name']],
@@ -132,10 +133,8 @@ async def UsersRecommend(anio: int):
 @app.get('/UsersNotRecommend/{anio}')
 async def UsersNotRecommend(anio: int):
     try:
-        # Obtener una muestra aleatoria del DataFrame
-        df_sample = data_reviews.sample(frac=0.5, random_state=42)
         # Filtrar por el año especificado
-        df_año = df_sample[df_sample['año_posted'] == str(anio)]
+        df_año = df_m_reviews[df_m_reviews['año_posted'] == str(anio)]
         # Fusionar los DataFrames para obtener la información relevante
         df_merged = pd.merge(df_año[['item_id', 'recommend', 'sentiment_analysis', 'año_posted']],
                              data_items[['item_id', 'item_name']],
