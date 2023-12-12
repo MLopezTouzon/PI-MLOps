@@ -85,7 +85,7 @@ async def UserForGenre(genero: str):
             status_code=500, detail=f"Error interno del servidor: {str(e)}")
 
  # Obtener una muestra aleatoria del DataFrame data_reviews para que funcionen los proximos dos endpoints en render
-df_m_reviews = data_reviews.sample(frac=0.5, random_state=42)
+df_m_reviews = data_reviews.sample(frac=0.3, random_state=42)
 
 
 @app.get('/UsersRecommend/{anio}')
